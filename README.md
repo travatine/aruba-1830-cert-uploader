@@ -1,6 +1,16 @@
 # aruba-1830-cert-uploader
 A tool to upload certificates to my aruba 1830 switches
 
+## Warnings!!!
+
+Take a backup of your switch config & verify you can resore it, before trying this!
+
+## Why???
+
+Aruba Instant On 1830 Switches do not support SSH or have any documented APIs.
+
+This tool was make by inspecting network requests made to the switch when manually uploading certificates and then making the same requests via python.
+
 ## Configuring
 
 certs/ - Put your Private Key & Certificate file in this directory
