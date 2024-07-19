@@ -29,5 +29,9 @@ Create a dedicated user on the switch for uploading certificates.
    
 ## Notes
 
-This process has been tested on Arube 1830 switches running Firmware Version 2.9.1 with both Self Signed Certificates & Certificates from Lets Encrypt.
+This process has been tested on Aruba 1830 switches running Firmware Version 2.9.1 with both Self Signed Certificates & Certificates from Lets Encrypt.
 
+## Limitations
+
+The startup config is not updated by this process ; this means you need to press save button after uploading certificate.
+However, if something goes wrong, the switch can be rebooted to undo the changes made by this script.
