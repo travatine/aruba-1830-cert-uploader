@@ -1,0 +1,19 @@
+{
+  "certificates": {
+    "privateKeyFile": "./certs/private.key.pem",
+    "publicKeyFile": "./certs/public.key.pem",
+    "certificateFile": "./certs/cert.pem"
+  },
+  "switches": [
+    {
+      "hostname":"switch01.example.org",
+      "user": "????",
+      "password": "????"
+    },
+    {
+      "hostname":"switch02.example.org",
+      "user": "????",
+      "password": "????"
+    }
+  ]
+}
