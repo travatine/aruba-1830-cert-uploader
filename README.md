@@ -3,6 +3,7 @@ A tool to upload certificates to my aruba 1830 switches
 
 ## Configuring
 
+certs/ - Put your Private Key & Certificate file in this directory
 config.sh - this file is loaded by setup.sh
  - Specify the location of your private key file & certificate
 config.json - this file is loaded by aruba-cert-uploader.py
