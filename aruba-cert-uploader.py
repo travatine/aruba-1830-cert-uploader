@@ -171,6 +171,164 @@ class ArubaSwitch:
         result = self.session.post(url, data)
         print(result.text)
 
+
+    def downloadStartupConfig(self):
+      result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/http_download?action=3&ssd=4')
+      if result.ok:
+        with open(f'./{self.hostName}.startup.config.txt','wt') as f:
+            f.write(result.text)
+
+    def downloadRunningConfig(self):
+      result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/http_download?action=2&ssd=4')
+      if result.ok:
+        with open(f'./{self.hostName}.running.config.txt','wt') as f:
+            f.write(result.text)
+
+    def parseMacTableXML(self,resultText):
+        responseData = ET.fromstring(resultText)
+        entries = responseData.findall('.//Entry')
+        
+        print('Mac Table')
+        for entry in entries:
+            vlanName=entry.findtext('.//VLANName')
+            vlanID=entry.findtext('.//VLANID')
+            macAddress=entry.findtext('.//MACAddress')
+            interfaceType=entry.findtext('.//interfaceType')
+            interfaceName=entry.findtext('.//interfaceName')
+            if 'none' in interfaceName:
+               interfaceName = 'CPU' 
+            addressType=entry.findtext('.//addressType')
+            description =''
+            if interfaceType == '0' and addressType == '4':
+                description = 'Management'
+            elif interfaceType == '1' and addressType == '3':
+                description = 'Learned'
+            print(f'port {interfaceName:3} (type {interfaceType}) {macAddress} (type={addressType}) vlan: {vlanID:4} {vlanName} {description}')
+            #print(tostring(entry))
+
+    def diagnostics_mac_table(self):
+        self.__debug('>> diagnostics_mac_table')
+        result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/wcd?{{ForwardingTable}}&_=1234')
+        if result.ok:
+            self.parseMacTableXML(result.text)
+           
+    def vlan_current_status(self):
+        self.__debug('>> vlan_current_status')
+        result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/wcd?{{VLANList}}')
+        if result.ok:
+            #print(result.text)
+            responseData = ET.fromstring(result.text)
+            vlans = responseData.findall('.//VLAN')
+            for vlan in vlans:
+                vlanID=vlan.findtext('.//VLANID')
+                vlanName=vlan.findtext('.//VLANName')
+                authType=vlan.findtext('.//authorizationType')
+                vlanType=vlan.findtext('.//VLANType')
+                print(f'vlan id={vlanID:4} {vlanName:16} auth={authType} vlanType={vlanType}')
+
+    def get_ports_info(self):
+        self.__debug('>> get_ports_info')
+        result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/wcd?{{Ports}}')
+        if result.ok:
+            #print(result.text) 
+            responseData = ET.fromstring(result.text)   
+            for port in responseData.findall('.//port'):
+                portObj = {
+                    'poeSupported': port.find('.//POESupported').text,
+                    'ifIndex': port.find('.//ifIndex').text,
+                    'portName': port.find('.//portName').text,
+                    'relUnit': port.find('.//relUnit').text,
+                    'transType': port.find('.//transType').text,
+                    'ifSpeed': port.find('.//ifSpeed').text,
+                    'swIfType': port.find('.//swIfType').text,
+                    'operStatus': port.find('.//operStatus').text,
+                    'adminStatus': port.find('.//adminStatus').text,
+                    'suspStatus': port.find('.//suspStatus').text,
+                }
+                print(portObj)
+    
+    def get_ports_info_alt(self):
+        self.__debug('>> get_ports_info_alt')
+        result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/wcd?{{Standard802_3List}}')
+        if result.ok:
+            #print(result.text) 
+            responseData = ET.fromstring(result.text)  
+            standard8023list = responseData.find('.//Standard802_3List') 
+            for entry in standard8023list.findall('.//Entry'):
+                #print(tostring(entry).decode())
+                linkState = entry.find('.//linkState').text
+                if linkState == '1':
+                    linkState = 'Up'
+                elif linkState == '2':
+                    linkState = 'Down'
+                mediaType = entry.find('.//mediaType').text
+                if mediaType == '1':
+                    mediaType = 'Copper'
+                elif mediaType =='2':
+                    mediaType = 'Optical'
+                duplex = entry.find('.//duplexOperMode').text
+                if duplex == '2':
+                    duplex='Full'
+                elif duplex == '4':
+                    duplex='Unknown'
+                portType = entry.find('.//interfaceType').text
+                data = {
+                   # 'id': entry.find('.//interfaceID').text,
+                    'name': entry.find('.//interfaceName').text,
+                    #'type': entry.find('.//interfaceType').text,
+                    'description': entry.find('.//interfaceDescription').text,
+                    'linkState': linkState ,
+                    'speed':  entry.find('.//speedOper').text,
+                    'duplex': duplex,
+                    'mediaType': mediaType,
+                }
+                if portType == '1':
+                    print(data)
+
+    def _bytesToHuman(self,bytes: int):
+        if bytes < 1024:
+            bytes = str(bytes) +' B'
+        elif bytes >= 1024 and bytes < (1024*1024):
+            bytes = str(int(bytes/1024)) +' KB'
+        elif bytes >= (1024*1024) and bytes < (1024*1024*1024):
+            bytes = str(round((bytes/(1024*1024)),2)) +' MB'    
+        elif bytes >= (1024*1024+1024) and bytes < (1024*1024*1024*1024):
+            bytes = str(round(bytes/(1024*1024*1024),2)) +' GB' 
+        return bytes
+
+    def get_ports_stats(self):
+        self.__debug('>> get_ports_stats')
+        result = self._getURL(f'http://{self.hostName}/{self._getMagic()}/hpe/wcd?{{StatisticsList}}{{EtherlikeStatisticsList}}') # 
+        if result.ok:
+            import json
+            import xmltodict
+            #print(result.text) 
+            responseData = ET.fromstring(result.text) 
+            StatisticsList= responseData.find('.//StatisticsList')
+            for entry in StatisticsList.findall('.//InterfaceStatisticsEntry'):    
+                recvBytes = int(entry.find('.//receivePacketByteCount').text)
+                recvBytes = self._bytesToHuman(recvBytes)
+                xmitBytes = int(entry.find('.//transmitPacketByteCount').text)
+                xmitBytes = self._bytesToHuman(xmitBytes)
+                data = {
+                    'id': entry.find('.//interfaceID').text,
+                    'name': entry.find('.//interfaceName').text,
+                    'type': entry.find('.//interfaceType').text,
+                    'receiveBytes': recvBytes,
+                    'transmitBytes': xmitBytes,
+                }
+                print(data)
+                # data_dict = xmltodict.parse(tostring(entry))
+                # json_data = json.dumps(data_dict,indent=2)
+                # print(json_data)
+            # EtherlikeStatisticsList = responseData.find('.//EtherlikeStatisticsList')
+            # for entry in EtherlikeStatisticsList.findall('.//InterfaceStatisticsEntry'):    
+            #     data_dict = xmltodict.parse(tostring(entry))
+            #     json_data = json.dumps(data_dict,indent=2)
+            #     print(json_data)
+          
+
+
 # code starts here
 print('loading certificate config...')
 
