@@ -8,6 +8,14 @@ config.sh - this file is loaded by setup.sh
 config.json - this file is loaded by aruba-cert-uploader.py
 - Specify the hostname & credentials of your switches
 
+## Recommendations
+
+Create a dedicated user on the switch for uploading certificates.
+- Go to Web GUI > Setup Network > User Management > Add User
+ - name the user "certbot" ( or something similar)
+ - User needs read/write access.
+ - Generate a long password for the user ( add the password to your customized config.json file)
+
 ## Setting up, Converting keys and Uploading Certificates
 
   ./setup.sh
